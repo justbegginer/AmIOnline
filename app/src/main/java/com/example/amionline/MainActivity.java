@@ -1,53 +1,63 @@
 package com.example.amionline;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import androidx.appcompat.app.AppCompatActivity;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
     }
-    public void onBottomClick(View view)throws UnknownHostException, IOException {
 
+    public void onBottomClick(View view) {
         String ipAddress = "8.8.8.8";
-        InetAddress inet = InetAddress.getByName(ipAddress);
-
-        Button button = findViewById(R.id.button);
-        button.setVisibility(View.INVISIBLE);
 
         TextView textView = findViewById(R.id.textView);
         textView.setText("Проверка сети , пожалуйста ожидайте");
 
         ImageView connectResult;
 
-            if (inet.isReachable(5000)) {
+        IpCheckTask ipCheckTask = new IpCheckTask();
+        try {
+            boolean isConnected = ipCheckTask.execute(ipAddress)
+                    .get(5000, TimeUnit.MILLISECONDS);
+
+            if (isConnected) {
                 textView.setText("Подключение к интернету успешное");
                 connectResult = findViewById(R.id.goodConnect);
                 connectResult.setVisibility(View.VISIBLE);
             } else {
-                textView.setText("Нет подключения к интернету");
-                connectResult = findViewById(R.id.badConnect);
-                connectResult.setVisibility(View.VISIBLE);
+                logError(textView,"Нет подключения к интернету");
             }
-            connectResult.setVisibility(View.INVISIBLE);
-            //System.out.println("Exception");
-            //e.getLocalizedMessage();
-            //System.out.println(e.getLocalizedMessage());
+        } catch (ExecutionException e) {
+            Throwable realException = e.getCause();
+            if (realException != null) {
+                realException.printStackTrace();
+                logError(textView, realException.getLocalizedMessage());
+            } else {
+                logError(textView, "Execution problem");
+            }
+        } catch (InterruptedException e) {
+            logError(textView, "Was interrupted");
+        } catch (TimeoutException e) {
+            logError(textView, "Timeout");
+        }
+    }
 
-
-        textView.setText("Проверка сети , пожалуйста ожидайте");
-        button.setVisibility(View.VISIBLE);
+    private void logError(TextView textView, String msg) {
+        textView.setText(msg);
+        ImageView connectResult = findViewById(R.id.badConnect);
+        connectResult.setVisibility(View.VISIBLE);
     }
 }
